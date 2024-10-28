@@ -1,0 +1,7 @@
+# ============================================================================
+# PYTHON PACKAGE REQUIREMENTS: For documentation generation (PREPARED)
+# ============================================================================
+
+# -- PREPARED:
+# Sphinx >= 1.6
+# sphinx_bootstrap_theme >= 0.6.0

@@ -1,0 +1,147 @@
+# =============================================================================
+# PACKAGING: shellfs
+# =============================================================================
+# SEE ALSO:
+#   * https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
+#   * https://setuptools-scm.readthedocs.io/en/latest/usage/
+#   * https://pypi.org/classifiers/
+# =============================================================================
+# PYTHON3: requires = ["setuptools>=64", "setuptools_scm>=8", "wheel"]
+
+[build-system]
+requires = ["setuptools", "setuptools_scm", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "shellfs"
+authors = [
+    {name = "Jens Engel", email = "jenisys@noreply.github.com"},
+]
+description = "Provides a filesystem abstraction based on shell commands"
+dynamic = ["version"]
+readme = "README.md"
+requires-python = ">=3.8"
+keywords = ["shellfs", "fsspec", "filesystem", "filesystem-adapter", "filesystem-spec"]
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Filesystems",
+]
+dependencies = [
+    "fsspec >= 2024.10.0",
+    "parse >= 1.20.2",
+    "parse_type >= 0.6.4",
+    "typing_extensions >= 4.12.2",
+]
+
+
+[project.urls]
+Homepage = "https://github.com/jenisys/shellfs"
+Download = "https://pypi.org/project/shellfs/"
+Repository = "https://github.com/jenisys/shellfs"
+Issues = "https://github.com/jenisys/shellfs/issues/"
+
+
+[project.optional-dependencies]
+develop = [
+    # -- DISABLED:
+    # "setuptools >= 64.0.0; python_version >= '3.5'",
+    # "setuptools <  45.0.0; python_version <  '3.5'",  # DROP: Python2, Python 3.4 support.
+    # "setuptools_scm >= 8.0.0; python_version >= '3.7'",
+    # "setuptools_scm <  8.0.0; python_version <  '3.7'",
+    "setuptools",
+    "setuptools-scm",
+    "wheel",
+    "build >= 0.5.1",
+    "twine >= 1.13.0",
+    "coverage >= 4.4",
+    "pytest >= 5.0",
+    "pytest-html >= 1.19.0",
+    "pytest-cov",
+    "tox >= 4.0",
+    "virtualenv >= 20.0.0",
+    "ruff; python_version >=  '3.7'",
+    "pylint",
+]
+# -- PREPARED:
+# docs = [
+#    "Sphinx >= 1.6",
+#    "sphinx_bootstrap_theme >= 0.6.0"
+# ]
+testing = [
+    "pytest >= 5.0",
+    "pytest-html >= 1.19.0",
+]
+
+
+[options.entry_points]
+fsspec.specs = [
+  {shellfs = "shellfs.spec:ShellFileSystem"}
+]
+
+# -----------------------------------------------------------------------------
+# PACAKING TOOL SPECIFIC PARTS:
+# -----------------------------------------------------------------------------
+[tool.setuptools]
+platforms = ["any"]
+zip-safe = true
+
+# -- DISABLED:
+# [tool.setuptools.dynamic]
+# version = {attr = "shellfs._version.version"}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["shellfs*"]
+exclude = ["tests*"]
+namespaces = false
+
+# -- SETUPTOOLS-SCM: Generate version info from git-tag(s).
+[tool.setuptools_scm]
+version_file = "shellfs/_version.py"
+
+
+# =============================================================================
+# OTHER TOOLS
+# =============================================================================
+[tool.black]
+line_length = 100
+target-version = ["py312"]
+include = '\.pyi?$'
+exclude = '''
+(
+  /(
+      \.git
+    | \.venv
+    | \.netbox
+    | \.vscode
+    | configuration
+  )/
+)
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 100
+
+
+# -----------------------------------------------------------------------------
+# PYLINT:
+# -----------------------------------------------------------------------------
+[tool.pylint.messages_control]
+disable = "C0330, C0326"
+
+[tool.pylint.format]
+max-line-length = "100"

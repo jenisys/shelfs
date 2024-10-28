@@ -1,0 +1,36 @@
+*.py[cod]
+
+# -- TEMPORARY PYTHON PACKAGE PARTS:
+shellfs/_version.py
+MANIFEST
+*.egg
+*.egg-info
+dist
+build
+downloads
+__pycache__
+__*/
+
+# Installer logs
+pip-log.txt
+
+Pipfile
+Pipfile.lock
+
+# -- TESTS, COVERAGE REPORTS, ...
+.cache/
+.direnv/
+.eggs/
+.hypothesis/
+.pytest_cache/
+.ruff_cache/
+.tox/
+.venv*/
+.coverage
+
+# -- IDE-RELATED:
+.fleet/
+.idea/
+.vscode/
+.project
+.pydevproject

@@ -1,0 +1,34 @@
+# ============================================================================
+# PYTHON PACKAGE REQUIREMENTS FOR: parse_type -- For development only
+# ============================================================================
+
+# -- BUILD-SYSTEM SUPPORT: Using invoke
+-r ../tasks/py.requirements.txt
+
+# -- RELEASE MANAGEMENT: Push package to pypi.
+twine >= 1.13.0
+-r packaging.txt
+
+# -- PYTHON2/PYTHON3 COMPATIBILITY:
+modernize >= 0.5
+
+# -- PYTHON 3 TYPE HINTS:
+typing-extensions; python_version >= '3.8'
+
+# -- LINTERS:
+ruff; python_version >=  '3.7'
+pylint
+
+# -- EXPLORE:
+ipython
+
+# -- TEST SUPPORT: CODE COVERAGE SUPPORT, ...
+coverage >= 4.4
+pytest-cov
+
+tox >= 4.0     # -- HINT: tox >= 4.0 has breaking changes.
+argparse    # -- NEEDED-FOR: toxcmd.py
+
+# -- RELATED:
+-r testing.txt
+-r docs.txt
