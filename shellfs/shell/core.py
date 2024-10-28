@@ -54,6 +54,9 @@ class PathType(Enum):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    def __lt__(self, other):
+        return self.value < other.value
+
     @classmethod
     def from_name(cls, name: str) -> Self:
         enum_item = getattr(cls, name.upper(), None)
@@ -87,6 +90,28 @@ class PathEntry(TypedDict):
     @classmethod
     def make_not_found(cls, name: str) -> Self:
         return dict(name=name, type=PathType.NOT_FOUND, size=0)
+
+    def __eq__(self, other):
+        size_matched = (
+            (self["size"] == other["size"]) or
+            (self["size"] is None) or (other["size"] is None)
+        )
+        return (
+            self["name"] == other["name"] and
+            self["type"] == other["type"] and
+            size_matched
+        )
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __lt__(self, other):
+        size_lessthan = (self["size"] < other["size"]) or (self["size"] is None)
+        return (
+            (self["type"] < other["type"]) or
+            ((self["type"] == other["type"]) and (self["name"] < other["name"])) or
+            ((self["type"] == other["type"]) and (self["name"] == other["name"]) and size_lessthan)
+        )
 
 
 class FSOperation(Enum):
@@ -151,35 +176,36 @@ class FSOpsCommand:
         return self._make_command_for(FSOperation.REMOVE, path=path)
 
     # -- MAKE-RESULT FUNCTIONS:
-    def make_result4info(self, path: str, output: str):
+    def make_result4info(self, path: str, output: str, return_code: int = 0):
         return NotImplemented
 
-    def make_result4listdir(self, path: str, output: str) -> List[PathEntry]:
+    def make_result4listdir(self, path: str, output: str, return_code: int = 0) -> List[PathEntry]:
         return NotImplemented
 
     @classmethod
-    def make_result4any(cls, path: str, output: str):
-        pass
+    def make_result4any(cls, path: str, output: str, return_code: int = 0) -> bool:
+        # -- NOTE: Indicate if FS operation was successful (or not).
+        return return_code == 0
 
     @classmethod
-    def make_result4mkdir(cls, path: str, output: str):
-        pass
+    def make_result4mkdir(cls, path: str, output: str, return_code: int = 0) -> bool:
+        return cls.make_result4any(path, output, return_code=return_code)
 
     @classmethod
-    def make_result4makedirs(cls, path: str, output: str):
-        pass
+    def make_result4makedirs(cls, path: str, output: str, return_code: int = 0) -> bool:
+        return cls.make_result4any(path, output, return_code=return_code)
 
     @classmethod
-    def make_result4touch(cls, path: str, output: str):
-        pass
+    def make_result4touch(cls, path: str, output: str, return_code: int = 0) -> bool:
+        return cls.make_result4any(path, output, return_code=return_code)
 
     @classmethod
-    def make_result4rmtree(cls, path: str, output: str):
-        pass
+    def make_result4rmtree(cls, path: str, output: str, return_code: int = 0):
+        return cls.make_result4any(path, output, return_code=return_code)
 
     @classmethod
-    def make_result4remove(cls, path: str, output: str):
-        pass
+    def make_result4remove(cls, path: str, output: str, return_code: int = 0) -> bool:
+        return cls.make_result4any(path, output, return_code=return_code)
 
 
 
@@ -188,22 +214,38 @@ class ShellProtocol(Protocol):
     FSOPS_COMMAND_CLASS = None
     ERROR_DIALECT_CLASS = ErrorDialect
 
-    def __init__(self, fsops_command: Optional[FSOpsCommand] = None,
-                 error_dialect: Optional[ErrorDialect] = None):
-        if fsops_command is None:
-            fsops_command = self.FSOPS_COMMAND_CLASS()
+    def _setup_error_dialect(self, error_dialect: Optional[ErrorDialect] = None):
         if error_dialect is None:
             error_dialect = self.ERROR_DIALECT_CLASS
 
-        self.fsops_command = fsops_command
         self.error_dialect = error_dialect
+
+    def _setup_fsops(self, fsops_command: Optional[FSOpsCommand] = None):
+        if fsops_command is None:
+            fsops_command = self.FSOPS_COMMAND_CLASS()
+        self.fsops_command = fsops_command
+
+    def _ensure_setup(self):
+        self._setup_fsops()
+        self._setup_error_dialect()
+
+    # def __init__(self, fsops_command: Optional[FSOpsCommand] = None,
+    #              error_dialect: Optional[ErrorDialect] = None):
+    #     if fsops_command is None:
+    #         fsops_command = self.FSOPS_COMMAND_CLASS()
+    #     if error_dialect is None:
+    #         error_dialect = self.ERROR_DIALECT_CLASS
+    #
+    #     self.fsops_command = fsops_command
+    #     self.error_dialect = error_dialect
 
     @abstractmethod
     def run(self, command: str, timeout: Optional[float] = None) -> CommandResult:
         ...
 
 
-class FileSystemProtocol(Protocol):
+# XXX_JE_DISABLED: class FileSystemProtocol(Protocol):
+class FileSystemProtocol:
     def __init__(self, shell: ShellProtocol):
         self.shell = shell
         self.fsops_command = shell.fsops_command
@@ -233,13 +275,14 @@ class FileSystemProtocol(Protocol):
         command = make_command_func(path, **kwargs)
         result = self.shell.run(command)
         output = result.stdout.decode()
-        return make_result_func(path, output)
-
-    def listdir(self, path: str) -> List[PathEntry]:
-        return self.run_fsop(FSOperation.LISTDIR, path)
+        return make_result_func(path, output,
+                                return_code=result.returncode)
 
     def info(self, path: str) -> PathEntry:
         return self.run_fsop(FSOperation.INFO, path)
+
+    def listdir(self, path: str) -> List[PathEntry]:
+        return self.run_fsop(FSOperation.LISTDIR, path)
 
     def exists(self, path: str) -> bool:
         path_entry = self.info(path)

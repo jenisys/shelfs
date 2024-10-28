@@ -3,7 +3,7 @@
 # ============================================================================
 
 # -- BUILD-SYSTEM SUPPORT: Using invoke
--r ../tasks/py.requirements.txt
+# DISABLED: -r ../tasks/py.requirements.txt
 
 # -- RELEASE MANAGEMENT: Push package to pypi.
 twine >= 1.13.0

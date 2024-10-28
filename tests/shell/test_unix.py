@@ -1,9 +1,27 @@
+# XXX from sys import stdout
+from typing import Optional
+
 import pytest
 
-from shellfs.shell.core import PathType
+from shellfs.shell import PathEntry
+from shellfs.shell.core import CommandResult, PathType
 from shellfs.shell.unix import FSOpsCommand4Unix, UnixShell
 
 
+# -----------------------------------------------------------------------------
+# TEST SUPPORT:
+# -----------------------------------------------------------------------------
+def make_command_result_from_output(output: str,
+                                    command: Optional[str] = None,
+                                    return_code: int = 0,
+                                    stderr: Optional[str] = None):
+    return CommandResult(command, returncode=return_code,
+                         stdout=output, stderr=stderr)
+
+
+# -----------------------------------------------------------------------------
+# TEST SUITE:
+# -----------------------------------------------------------------------------
 class TestUnixShell:
     pass
 
@@ -80,8 +98,45 @@ class TestFSOpsCommand4Unix:
         ("UNKNOWN_DIRECTORY", "ls: UNKNOWN_DIRECTORY: No such file or directory"),
     ])
     def test_make_result4info__with_path_not_found(self, path, output):
-        entry = FSOpsCommand4Unix.make_result4info(path, output)
+        # -- SEE: man ls  -- For return codes (and return_code=2)
+        entry = FSOpsCommand4Unix.make_result4info(path, output, return_code=2)
         this_size = entry["size"]
         assert entry["name"] == path
         assert entry["type"] == PathType.NOT_FOUND
         assert this_size == 0
+
+    def test_make_result4listdir__with_existing_directory(self):
+        # -- SEE: man ls  -- For return codes (and return_code=2)
+        path = "some_directory",
+        output = """\
+total 16
+-rw-r--r-- 1 alice  users    0 Oct 27 12:01 EMPTY_FILE.txt
+drwxr-xr-x 3 bob    users 4096 Oct 27 12:02 some_directory
+-rw-r--r-- 1 charly users  123 Oct 27 12:03 some_file.txt
+"""
+        contained = FSOpsCommand4Unix.make_result4listdir(path, output)
+        expected = [
+            PathEntry(name="EMPTY_FILE.txt", type=PathType.FILE, size=0),
+            PathEntry(name="some_directory", type=PathType.DIRECTORY, size=4096),
+            PathEntry(name="some_file.txt", type=PathType.FILE, size=123),
+        ]
+        assert contained == expected
+
+    def test_make_result4listdir__with_nonexisting_directory(self):
+        # -- SEE: man ls  -- For return codes (and return_code=2)
+        path = "MISSING_DIRECTORY",
+        output = """ls: cannot access 'MISSING_DIRECTORY': No such file or directory"""
+
+        contained = FSOpsCommand4Unix.make_result4listdir(path, output, return_code=2)
+        expected = []
+        assert contained == expected
+
+    def test_make_result4listdir__with_existing_file(self):
+        # -- SEE: man ls  -- For return codes (and return_code=2)
+        path = "some_directory",
+        output = """-rw-r--r-- 1 charly users  123 Oct 27 12:03 some_file.txt"""
+        contained = FSOpsCommand4Unix.make_result4listdir(path, output)
+        expected = [
+            PathEntry(name="some_file.txt", type=PathType.FILE, size=123),
+        ]
+        assert contained == expected

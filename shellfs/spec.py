@@ -90,7 +90,8 @@ class ShellFileSystem(AbstractFileSystem):
 
     def info(self, path, **kwargs):
         path_entry = self.fs_protocol.info(path)
-        if not path_entry.exists():
+        path_type = path_entry["type"]
+        if path_type is PathType.NOT_FOUND:
             raise FileNotFoundError(path)
         return path_entry
 
@@ -135,16 +136,19 @@ class ShellFileSystem(AbstractFileSystem):
         """
         path = self._strip_protocol(path)
         path_entry = self.info(path)
+        if path_entry["type"] is PathType.NOT_FOUND:
+            raise FileNotFoundError(path)
+
         if path_entry["type"] == PathType.DIRECTORY:
             path_entries = self.fs_protocol.listdir(path)
-            # with os.scandir(path) as it:
-            #     infos = [self.info(f) for f in it]
         else:
+            assert path_entry["type"] == PathType.FILE
             path_entries = [path_entry]
 
         if not detail:
             # -- NAME-ONLY:
             return [entry["name"] for entry in path_entries]
+        # -- OTHERWISE: Provide complete info for each entry.
         return path_entries
 
     def mkdir(self, path, create_parents=True, **kwargs):

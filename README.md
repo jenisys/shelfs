@@ -1,26 +1,6 @@
 shellfs
 ===============================================================================
 
-xxx
-
-.. |badge.CI_status| image:: https://github.com/jenisys/parse_type/actions/workflows/test.yml/badge.svg
-    :target: https://github.com/jenisys/parse_type/actions/workflows/test.yml
-    :alt: CI Build Status
-
-.. |badge.latest_version| image:: https://img.shields.io/pypi/v/parse_type.svg
-    :target: https://pypi.python.org/pypi/parse_type
-    :alt: Latest Version
-
-.. |badge.downloads| image:: https://img.shields.io/pypi/dm/parse_type.svg
-    :target: https://pypi.python.org/pypi/parse_type
-    :alt: Downloads
-
-.. |badge.license| image:: https://img.shields.io/pypi/l/parse_type.svg
-    :target: https://pypi.python.org/pypi/parse_type/
-    :alt: License
-
-|badge.CI_status| |badge.latest_version| |badge.license| |badge.downloads|
-
 [shellfs] is a simple, in-performant filesystem that uses shell commands
 to implement filesystem operations. [shellfs] is based on [fsspec]
 that provides the core functionality for different filesystems.
@@ -29,22 +9,30 @@ that provides the core functionality for different filesystems.
 [shellfs] provides:
 
 * a filesystem abstraction if a shell is provided to run commands
-* a shell protocol as extension-point for different kind of shells
-* the shell protocol provides a stable interface to run commands in shell
-* the shell protocol is implemented for the local shell (on Unix platforms)
+* the shell protocol provides a stable interface to run commands in any shell
+* a `ShellProtocol` as extension-point for different kind of shells
+  (to execute filesystem operation commands).
+* a `FileSystemProtocol` as extension-point to execute filesystem operations via shell commands,
+* a `FSOperationCommand` as low-level profile that acts as adapter.
+  between different shell command dialects and supports the shell command execution.
+* the shell protocol is implemented for the local shell (on Unix platforms).
 
 EXAMPLE:
 
 ```python
 # -- FILE: example_use_shellfs.py
-from shellfs.shell.local import LocalUnixShell
+# SHELL PROVIDES:
+#   * run(command, ...) method to execute commands (filesystem operations)
+#   * FSOPS_COMMAND_CLASS: Provides low-level functionality for FileSystemProtocol
+
 from shellfs import ShellFileSystem
+from shellfs.shell.unix import UnixShell
 from pathlib import Path
 
-the_shell = LocalUnixShell()
-shellfs = ShellFileSystem(the_shell)
+this_shell = UnixShell()
+shellfs = ShellFileSystem(this_shell)
 some_dir_path = "/tmp/some_dir"
-some_file_path = Path(some_dir_path) / "/some_file.txt"
+some_file_path = Path(some_dir_path)/"some_file.txt"
 shellfs.touch(some_file_path)
 assert shellfs.exists(some_file_path) is True
 assert shellfs.isfile(some_file_path) is True
@@ -56,9 +44,11 @@ NOTES:
 
 * The [shellfs] is not very performant.
 * The [shellfs] is intended to be used if no better filesystem exists
-  and when only a command shell is provided that can access the internal filesystem.
+  and only if a command shell is provided that allows to access the internal filesystem.
 
 RELATED:
+
+* [fsspec]
 
 [shellfs]: https://github.com/jenisys/shellfs
 [fsspec]: https://github.com/fsspec/filesystem_spec

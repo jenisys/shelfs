@@ -37,6 +37,7 @@ class LocalShell(ShellProtocol):
 
     def __init__(self, check: Optional[bool] = None) -> None:
         super().__init__()
+        self._ensure_setup()
         self.check = check or self.STRICT_DEFAULT
 
     def run(self, command: str,
@@ -47,5 +48,6 @@ class LocalShell(ShellProtocol):
                               capture_output=True,
                               timeout=timeout,
                               check=check,
+                              shell=True,
                               **kwargs)
 

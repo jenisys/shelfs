@@ -4,7 +4,7 @@ from typing import List, Optional, ParamSpec
 import parse
 from parse_type.cfparse import Parser as CFParser
 
-from .core import PathEntry, FSOpsCommand, PathType
+from .core import PathEntry, FSOpsCommand, PathType, CommandResult
 from .local import LocalShell
 
 # -----------------------------------------------------------------------------
@@ -38,6 +38,7 @@ class FSOpsCommand4Unix(FSOpsCommand):
     - ``ls -ladFL -D "%s" {path}``
     - "-l": Show long-format
     - "-a": Do not ignore entries starting with "."
+    - "-A": Do not show entries: ".", ".."
     - "-F": Add name-suffixes: "/" for directory, "@" for symlink, ...
     - "-d": Show directory only, not its contents
     - "-L": Follow symbolic link to show the file-type directly
@@ -78,8 +79,8 @@ class FSOpsCommand4Unix(FSOpsCommand):
     * https://www.man7.org/linux/man-pages/man1/ls.1.html
     *
     """
-    COMMAND_SCHEMA4LISTDIR = "ls -laF {path}"
-    COMMAND_SCHEMA4INFO = "ls -ladL {path}"
+    COMMAND_SCHEMA4LISTDIR = "ls -lAL {path}"
+    COMMAND_SCHEMA4INFO = "ls -ldAL {path}"
     RESULT_SCHEMA4INFO = "{file_type:Word}{_s0:Spacer}{link_number:d}{_s1:Spacer}{user:w}{_s2:Spacer}{group:w}{_s3:Spacer}{size:d}{_s4:Spacer}{timestamp}{_s5:Spacer}{name:Word}"
     FILE_TYPE_CHARS = "-bcdlpswD"
     FILE_TYPE_NORMAL_CHARS = "-dl"  # Regular-file, directory, symlink
@@ -104,9 +105,9 @@ class FSOpsCommand4Unix(FSOpsCommand):
 
     # -- IMPLEMENT INTERFACE FOR: FSOpsCommand
     @classmethod
-    def make_result4info(cls, path: str, output: str) -> PathEntry:
+    def make_result4info(cls, path: str, output: str, return_code: int = 0) -> PathEntry:
         output = output.strip()
-        if cls.PATH_NOT_FOUND_MARKER in output:
+        if return_code != 0 or cls.PATH_NOT_FOUND_MARKER in output:
             return PathEntry.make_not_found(name=path)
 
         schema = cls.RESULT_SCHEMA4INFO
@@ -124,12 +125,22 @@ class FSOpsCommand4Unix(FSOpsCommand):
         return PathEntry.make_not_found(name=path)
 
     @classmethod
-    def make_result4listdir(cls, path: str, output: str) -> List[PathEntry]:
+    def make_result4listdir(cls, path: str, output: str, return_code: int = 0) -> List[PathEntry]:
         selected = []
-        for line in output.splitlines():
+        output = output.strip()
+        if cls.PATH_NOT_FOUND_MARKER in output:
+            # -- SPECIAL CASE: path is NOT-FOUND (use case: is not really used).
+            # MAYBE: return [PathEntry.make_not_found(path)]
+            return []
+
+        for index, line in enumerate(output.splitlines()):
+            if index == 0 and line.startswith("total "):
+                # -- FIRST LINE: If path is a directory.
+                continue
+
             path_entry = cls.make_result4info(path, line)
-            if path_entry.exists():
-                selected.append(path_entry)
+            assert path_entry["type"] is not PathType.NOT_FOUND
+            selected.append(path_entry)
         return selected
 
 
