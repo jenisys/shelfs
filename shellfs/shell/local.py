@@ -1,29 +1,13 @@
 import subprocess
-import sys
 from typing import Optional, ParamSpec
 
-from typing_extensions import Self
-
-from .core import FSOpsCommand, CommandResult, ShellProtocol
+from .core import CommandResult, ShellProtocol
 
 
 # -----------------------------------------------------------------------------
 # TYPE SUPPORT
 # -----------------------------------------------------------------------------
 P = ParamSpec("P")
-
-
-# -----------------------------------------------------------------------------
-# FILESYSTEM COMMAND DIALECTS:
-# -----------------------------------------------------------------------------
-# class FSCommandDialect4Unix(FSOpsCommand):
-#     COMMAND_SCHEMA4LISTDIR = "ls -laF {path}"
-#     COMMAND_SCHEMA4STAT = "ls -laF {path}"
-#
-#
-# class FSCommandDialect4Windows(FSOpsCommand):
-#     COMMAND_SCHEMA4LISTDIR = "dir {path}"
-#     COMMAND_SCHEMA4STAT = "dir {path}"
 
 
 # -----------------------------------------------------------------------------

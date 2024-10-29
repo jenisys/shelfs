@@ -1,6 +1,9 @@
-import subprocess
-from typing import Optional, ParamSpec
-from .core import FSOpsCommand, CommandResult, ShellProtocol
+from typing import ParamSpec
+from .core import (
+    FSOpsCommand,
+    CommandResult,  # noqa: F401
+    ShellProtocol   # noqa: F401
+)
 from .local import LocalShell
 
 # -----------------------------------------------------------------------------

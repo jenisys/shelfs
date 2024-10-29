@@ -5,7 +5,7 @@ from pathlib import Path
 from shutil import rmtree
 from typing import Optional
 
-import pytest
+# NOT_NEEDED: import pytest
 
 from shellfs.shell import PathEntry, PathType
 from shellfs.spec import ShellFileSystem

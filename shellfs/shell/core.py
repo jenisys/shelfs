@@ -1,6 +1,8 @@
 import sys
 from abc import abstractmethod
 from enum import Enum
+from functools import partial
+from logging import getLogger
 from subprocess import CalledProcessError, CompletedProcess
 from typing import (
     Any, Callable, List,
@@ -9,6 +11,12 @@ from typing import (
 )
 
 from typing_extensions import Self
+
+
+# -----------------------------------------------------------------------------
+# CONSTANTS
+# -----------------------------------------------------------------------------
+log4fsop = getLogger("shellfs.fsop")
 
 
 # -----------------------------------------------------------------------------
@@ -118,13 +126,18 @@ class FSOperation(Enum):
     UNKNOWN = 0
     INFO = 1
     LISTDIR = 2
+
     # -- CREATE OPERATION(s):
     MKDIR = 10
     MAKEDIRS = 11
     TOUCH = 12
+    COPY_FILE = 13
+    # RESERVED: COPY = 14
+
     # -- DESTRUCTIVE OPERATION(s):
     RMTREE = 20
-    REMOVE = 21
+    RMDIR = 21
+    REMOVE_FILE = 22
 
 
 class FSOpsCommand:
@@ -136,8 +149,10 @@ class FSOpsCommand:
     COMMAND_SCHEMA4MKDIR = None
     COMMAND_SCHEMA4MAKEDIRS = None
     COMMAND_SCHEMA4TOUCH = None
+    COMMAND_SCHEMA4COPY_FILE = None
     COMMAND_SCHEMA4RMTREE = None
-    COMMAND_SCHEMA4REMOVE = None
+    COMMAND_SCHEMA4RMDIR = None
+    COMMAND_SCHEMA4REMOVE_FILE = None
 
     def _select_command_schema_for(self, operation: FSOperation) -> str:
         schema_name = f"COMMAND_SCHEMA4{operation.name}"
@@ -149,64 +164,93 @@ class FSOpsCommand:
         # -- NORMAL-CASE:
         return command_schema
 
-    def _make_command_for(self, operation: FSOperation, path: str, **kwargs) -> str:
+    def _make_command_for(self, operation: FSOperation, **kwargs) -> str:
         command_schema = self._select_command_schema_for(operation)
-        return command_schema.format(path=path, **kwargs)
+        return command_schema.format(**kwargs)
 
     # -- MAKE-COMMAND FUNCTIONS:
     def make_command4info(self, path: str) -> str:
         return self._make_command_for(FSOperation.INFO, path=path)
 
-    def make_command4listdir(self, path: str) -> str:
-        return self._make_command_for(FSOperation.LISTDIR, path=path)
+    def make_command4listdir(self, directory: str) -> str:
+        return self._make_command_for(FSOperation.LISTDIR, directory=directory)
 
-    def make_command4mkdir(self, path: str) -> str:
-        return self._make_command_for(FSOperation.MKDIR, path=path)
+    def make_command4mkdir(self, directory: str) -> str:
+        return self._make_command_for(FSOperation.MKDIR, directory=directory)
 
-    def make_command4makedirs(self, path: str) -> str:
-        return self._make_command_for(FSOperation.MAKEDIRS, path=path)
+    def make_command4makedirs(self, directory: str) -> str:
+        return self._make_command_for(FSOperation.MAKEDIRS, directory=directory)
 
     def make_command4touch(self, path: str) -> str:
         return self._make_command_for(FSOperation.TOUCH, path=path)
 
-    def make_command4rmtree(self, path: str) -> str:
-        return self._make_command_for(FSOperation.RMTREE, path=path)
+    def make_command4copy_file(self, from_path: str, to_path: str) -> str:
+        return self._make_command_for(FSOperation.COPY_FILE,
+                                      from_path=from_path,
+                                      to_path=to_path)
 
-    def make_command4remove(self, path: str) -> str:
-        return self._make_command_for(FSOperation.REMOVE, path=path)
+    def make_command4rmtree(self, directory: str) -> str:
+        return self._make_command_for(FSOperation.RMTREE, directory=directory)
+
+    def make_command4rmdir(self, directory: str) -> str:
+        return self._make_command_for(FSOperation.RMDIR, directory=directory)
+
+    def make_command4remove_file(self, path: str) -> str:
+        return self._make_command_for(FSOperation.REMOVE_FILE, path=path)
 
     # -- MAKE-RESULT FUNCTIONS:
-    def make_result4info(self, path: str, output: str, return_code: int = 0):
+    def make_result4info(self, result: CommandResult, path: str) -> PathEntry:
         return NotImplemented
 
-    def make_result4listdir(self, path: str, output: str, return_code: int = 0) -> List[PathEntry]:
+    def make_result4listdir(self, result: CommandResult, directory: str) -> List[PathEntry]:
         return NotImplemented
 
     @classmethod
-    def make_result4any(cls, path: str, output: str, return_code: int = 0) -> bool:
+    def make_result4any(cls, operation: FSOperation, result: CommandResult, **kwargs) -> bool:
         # -- NOTE: Indicate if FS operation was successful (or not).
-        return return_code == 0
+        succeeded = result.returncode == 0
+        if succeeded:
+            return True
+
+        # -- FILESYSTEM-OPERATION FAILED:
+        return_code = result.returncode
+        output = result.stdout
+        log4fsop.warning(f"""{operation.name} FAILED: kwargs: {kwargs}
+  return_code: {return_code}
+  output: {output}
+""")
+        return False
 
     @classmethod
-    def make_result4mkdir(cls, path: str, output: str, return_code: int = 0) -> bool:
-        return cls.make_result4any(path, output, return_code=return_code)
+    def make_result4mkdir(cls, result: CommandResult, directory: str) -> bool:
+        return cls.make_result4any(FSOperation.MKDIR, result,
+                                   directory=directory)
 
     @classmethod
-    def make_result4makedirs(cls, path: str, output: str, return_code: int = 0) -> bool:
-        return cls.make_result4any(path, output, return_code=return_code)
+    def make_result4makedirs(cls, result: CommandResult, directory: str) -> bool:
+        return cls.make_result4any(FSOperation.MAKEDIRS, result, directory=directory)
 
     @classmethod
-    def make_result4touch(cls, path: str, output: str, return_code: int = 0) -> bool:
-        return cls.make_result4any(path, output, return_code=return_code)
+    def make_result4touch(cls, result: CommandResult, path: str) -> bool:
+        return cls.make_result4any(FSOperation.TOUCH, result, path=path)
 
     @classmethod
-    def make_result4rmtree(cls, path: str, output: str, return_code: int = 0):
-        return cls.make_result4any(path, output, return_code=return_code)
+    def make_result4copy_file(cls, result: CommandResult, from_path: str, to_path: str) -> bool:
+        return cls.make_result4any(FSOperation.COPY_FILE, result,
+                                   from_path=from_path,
+                                   to_path=to_path)
 
     @classmethod
-    def make_result4remove(cls, path: str, output: str, return_code: int = 0) -> bool:
-        return cls.make_result4any(path, output, return_code=return_code)
+    def make_result4rmtree(cls, result: CommandResult, directory: str) -> bool:
+        return cls.make_result4any(FSOperation.RMTREE, result, directory=directory)
 
+    @classmethod
+    def make_result4rmdir(cls, result: CommandResult, directory: str) -> bool:
+        return cls.make_result4any(FSOperation.RMDIR, result, directory=directory)
+
+    @classmethod
+    def make_result4remove_file(cls, result: CommandResult, directory: str) -> bool:
+        return cls.make_result4any(FSOperation.REMOVE_FILE, result, directory=directory)
 
 
 class ShellProtocol(Protocol):
@@ -244,8 +288,13 @@ class ShellProtocol(Protocol):
         ...
 
 
-# XXX_JE_DISABLED: class FileSystemProtocol(Protocol):
 class FileSystemProtocol:
+    """
+    Provides the core functionality of the shell-based filesystem.
+
+    * It provides a simple, stable API to the :class:`ShellFileSystem`.
+    * It coordinates the execution of filesystem operations provided by a shell.
+    """
     def __init__(self, shell: ShellProtocol):
         self.shell = shell
         self.fsops_command = shell.fsops_command
@@ -267,22 +316,24 @@ class FileSystemProtocol:
         func_name1 = f"make_command4{operation_name}"
         func_name2 = f"make_result4{operation_name}"
         make_command_func = getattr(self.fsops_command, func_name1)
-        make_result_func = getattr(self.fsops_command, func_name2)
+        make_result_func = getattr(self.fsops_command, func_name2, None)
+        if make_result_func is None:
+            make_result_func = partial(FSOpsCommand.make_result4any, operation)
         return make_command_func, make_result_func
 
-    def run_fsop(self, operation, path: str, **kwargs) -> Any:
+    def run_fsop(self, operation, **kwargs) -> Any:
         make_command_func, make_result_func = self._fsop_functions_map[operation]
-        command = make_command_func(path, **kwargs)
+        command = make_command_func(**kwargs)
         result = self.shell.run(command)
         output = result.stdout.decode()
-        return make_result_func(path, output,
-                                return_code=result.returncode)
+        result.stdout = output
+        return make_result_func(result, **kwargs)
 
     def info(self, path: str) -> PathEntry:
-        return self.run_fsop(FSOperation.INFO, path)
+        return self.run_fsop(FSOperation.INFO, path=path)
 
-    def listdir(self, path: str) -> List[PathEntry]:
-        return self.run_fsop(FSOperation.LISTDIR, path)
+    def listdir(self, directory: str) -> List[PathEntry]:
+        return self.run_fsop(FSOperation.LISTDIR, directory=directory)
 
     def exists(self, path: str) -> bool:
         path_entry = self.info(path)
@@ -296,6 +347,28 @@ class FileSystemProtocol:
         path_entry = self.info(path)
         return path_entry["type"] is PathType.DIRECTORY
 
+    def mkdir(self, directory: str) -> bool:
+        return self.run_fsop(FSOperation.MKDIR, directory=directory)
+
+    def makedirs(self, directory: str) -> bool:
+        return self.run_fsop(FSOperation.MAKEDIRS, directory=directory)
+
+    def touch(self, path: str) -> bool:
+        return self.run_fsop(FSOperation.TOUCH, path=path)
+
+    def copy_file(self, from_path: str, to_path: str) -> bool:
+        return self.run_fsop(FSOperation.COPY_FILE,
+                             from_path=from_path,
+                             to_path=to_path)
+
+    def rmtree(self, directory: str) -> bool:
+        return self.run_fsop(FSOperation.RMTREE, directory=directory)
+
+    def rmdir(self, directory: str) -> bool:
+        return self.run_fsop(FSOperation.RMDIR, directory=directory)
+
+    def remove_file(self, path: str) -> bool:
+        return self.run_fsop(FSOperation.REMOVE_FILE, path=path)
 
 
 class ShellFactory:

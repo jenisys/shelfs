@@ -1,4 +1,3 @@
-import subprocess
 from typing import List, Optional, ParamSpec
 
 import parse
@@ -79,12 +78,19 @@ class FSOpsCommand4Unix(FSOpsCommand):
     * https://www.man7.org/linux/man-pages/man1/ls.1.html
     *
     """
-    COMMAND_SCHEMA4LISTDIR = "ls -lAL {path}"
-    COMMAND_SCHEMA4INFO = "ls -ldAL {path}"
+    COMMAND_SCHEMA4INFO = "ls -ldAL {path}"         # -- NOTE: Show info on a file or directory (follows symlinks).
+    COMMAND_SCHEMA4LISTDIR = "ls -lAL {directory}"  # -- NOTE: List the contents of a directory.
+    COMMAND_SCHEMA4MAKEDIRS = "mkdir -p {directory}"  # -- NOTE: Creates any missing directories.
+    COMMAND_SCHEMA4MKDIR = "mkdir {directory}"      # -- NOTE: May fail if directory exists.
+    COMMAND_SCHEMA4TOUCH = "touch {path}"           # -- NOTE: Creates an empty file (or update timestamps).
+    COMMAND_SCHEMA4COPY_FILE = "cp {from_path} {to_path}"
+    COMMAND_SCHEMA4RMTREE = "rm -rf {directory}"    # -- NOTE: Remove directory-tree recursively.
+    COMMAND_SCHEMA4RMDIR = "rmdir {directory}"      # -- NOTE: May fail if non-empty.
+    COMMAND_SCHEMA4REMOVE = "rm -f {path}"          # -- NOTE: Remove file.
     RESULT_SCHEMA4INFO = "{file_type:Word}{_s0:Spacer}{link_number:d}{_s1:Spacer}{user:w}{_s2:Spacer}{group:w}{_s3:Spacer}{size:d}{_s4:Spacer}{timestamp}{_s5:Spacer}{name:Word}"
-    FILE_TYPE_CHARS = "-bcdlpswD"
-    FILE_TYPE_NORMAL_CHARS = "-dl"  # Regular-file, directory, symlink
     PATH_NOT_FOUND_MARKER = "No such file or directory"
+    # NOT_NEEDED: FILE_TYPE_CHARS = "-bcdlpswD"
+    # NOT_NEEDED: FILE_TYPE_NORMAL_CHARS = "-dl"  # Regular-file, directory, symlink
     # COMMAND_SCHEMA4STAT1A = "ls -ladL -D '%s' {path}"  -- macOS
     # COMMAND_SCHEMA4STAT2A = "ls -ladL --time-style='+%s' {path}"  -- Linux
     # COMMAND_SCHEMA4STAT1B = "ls -ladL -D '%Y-%m-%dT%H:%M:%S' {path}"  -- macOS
@@ -103,17 +109,15 @@ class FSOpsCommand4Unix(FSOpsCommand):
             path_type = PathType.SYMLINK
         return path_type
 
-    # -- IMPLEMENT INTERFACE FOR: FSOpsCommand
     @classmethod
-    def make_result4info(cls, path: str, output: str, return_code: int = 0) -> PathEntry:
-        output = output.strip()
-        if return_code != 0 or cls.PATH_NOT_FOUND_MARKER in output:
+    def parse_info(cls, text: str, path: Optional[str] = None) -> PathEntry:
+        if cls.PATH_NOT_FOUND_MARKER in text:
             return PathEntry.make_not_found(name=path)
 
         schema = cls.RESULT_SCHEMA4INFO
         more_types = dict(Word=parse_word, Spacer=parse_spacer)
         parser = CFParser(schema, extra_types=more_types)
-        matched = parser.parse(output)
+        matched = parser.parse(text)
         if matched:
             file_type_and_access = matched.named["file_type"]
             path_type = cls.get_file_type_from(file_type_and_access)
@@ -124,21 +128,35 @@ class FSOpsCommand4Unix(FSOpsCommand):
         # -- OTHERWISE: Mismatched, unexpected output.
         return PathEntry.make_not_found(name=path)
 
+    # -- IMPLEMENT INTERFACE FOR: FSOpsCommand
     @classmethod
-    def make_result4listdir(cls, path: str, output: str, return_code: int = 0) -> List[PathEntry]:
-        selected = []
-        output = output.strip()
+    def make_result4info(cls, result: CommandResult, path: str) -> PathEntry:
+        if result.returncode != 0:
+            return PathEntry.make_not_found(name=path)
+
+        output = result.stdout.strip()
+        if isinstance(output, bytes):
+            output = output.decode("utf-8")
+        return cls.parse_info(output, path=path)
+
+    @classmethod
+    def make_result4listdir(cls, result: CommandResult, directory: str) -> List[PathEntry]:
+        output = result.stdout.strip()
+        if isinstance(output, bytes):
+            output = output.decode("utf-8")
+
         if cls.PATH_NOT_FOUND_MARKER in output:
             # -- SPECIAL CASE: path is NOT-FOUND (use case: is not really used).
             # MAYBE: return [PathEntry.make_not_found(path)]
             return []
 
+        selected = []
         for index, line in enumerate(output.splitlines()):
             if index == 0 and line.startswith("total "):
                 # -- FIRST LINE: If path is a directory.
                 continue
 
-            path_entry = cls.make_result4info(path, line)
+            path_entry = cls.parse_info(line, path=directory)
             assert path_entry["type"] is not PathType.NOT_FOUND
             selected.append(path_entry)
         return selected

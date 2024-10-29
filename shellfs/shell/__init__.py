@@ -1,8 +1,8 @@
 from .core import (
-    FileSystemProtocol,
-    PathEntry,
-    PathType,
-    ShellProtocol,
+    FileSystemProtocol,  # noqa: F401
+    PathEntry,      # noqa: F401
+    PathType,       # noqa: F401
+    ShellProtocol,  # noqa: F401
 )
 from .core import ShellFactory
 from .unix import UnixShell as _UnixShell

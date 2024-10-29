@@ -1,1 +1,1 @@
-from .spec import ShellFileSystem, ShellProtocol
+from .spec import ShellFileSystem, ShellProtocol  # noqa: F401

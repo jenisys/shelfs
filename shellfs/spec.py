@@ -2,7 +2,6 @@
 Provides a filesystem abstraction based on shell commands.
 """
 
-import os
 from typing import Optional, ParamSpec
 
 from fsspec.spec import AbstractFileSystem
@@ -10,10 +9,15 @@ from fsspec.spec import AbstractFileSystem
 from .shell import PathType
 from .shell.core import FileSystemProtocol, ShellProtocol, ShellFactory
 
-
+# -----------------------------------------------------------------------------
+# TYPE SUPPORT
+# -----------------------------------------------------------------------------
 P = ParamSpec("P")
 
 
+# -----------------------------------------------------------------------------
+# FILESYSTEM SUPPORT
+# -----------------------------------------------------------------------------
 class ShellFileSystem(AbstractFileSystem):
     def __init__(self, shell: Optional[ShellProtocol] = None, **kwargs: P.kwargs) -> None:
         if shell is None:
@@ -27,66 +31,6 @@ class ShellFileSystem(AbstractFileSystem):
     @property
     def fsid(self):
         return "shellfs"
-
-    # def info_example(self, path, **kwargs):
-    #     if isinstance(path, os.DirEntry):
-    #         # scandir DirEntry
-    #         out = path.stat(follow_symlinks=False)
-    #         link = path.is_symlink()
-    #         if path.is_dir(follow_symlinks=False):
-    #             t = "directory"
-    #         elif path.is_file(follow_symlinks=False):
-    #             t = "file"
-    #         else:
-    #             t = "other"
-    #
-    #         size = out.st_size
-    #         if link:
-    #             try:
-    #                 out2 = path.stat(follow_symlinks=True)
-    #                 size = out2.st_size
-    #             except OSError:
-    #                 size = 0
-    #         path = self._strip_protocol(path.path)
-    #     else:
-    #         # str or path-like
-    #         path = self._strip_protocol(path)
-    #         out = os.stat(path, follow_symlinks=False)
-    #         link = stat.S_ISLNK(out.st_mode)
-    #         if link:
-    #             out = os.stat(path, follow_symlinks=True)
-    #         size = out.st_size
-    #         if stat.S_ISDIR(out.st_mode):
-    #             t = "directory"
-    #         elif stat.S_ISREG(out.st_mode):
-    #             t = "file"
-    #         else:
-    #             t = "other"
-    #     result = {
-    #         "name": path,
-    #         "size": size,
-    #         "type": t,
-    #         "created": out.st_ctime,
-    #         "islink": link,
-    #     }
-    #     for field in ["mode", "uid", "gid", "mtime", "ino", "nlink"]:
-    #         result[field] = getattr(out, f"st_{field}")
-    #     if link:
-    #         result["destination"] = os.readlink(path)
-    #     return result
-
-    # def ls_example(self, path, detail=False, **kwargs):
-    #     path = self._strip_protocol(path)
-    #     info = self.info(path)
-    #     if info["type"] == "directory":
-    #         with os.scandir(path) as it:
-    #             infos = [self.info(f) for f in it]
-    #     else:
-    #         infos = [info]
-    #
-    #     if not detail:
-    #         return [i["name"] for i in infos]
-    #     return infos
 
     def info(self, path, **kwargs):
         path_entry = self.fs_protocol.info(path)
@@ -167,7 +111,14 @@ class ShellFileSystem(AbstractFileSystem):
         kwargs:
             may be permissions, etc.
         """
-        pass  # not necessary to implement, may not have directories
+        path = self._strip_protocol(path)
+        if create_parents:
+            self.makedirs(path, exist_ok=True)
+            return
+
+        # -- OTHERWISE:
+        # NOTE: Not 100% correct -- DO NOT CARE IF EXISTS or NOT.
+        self.fs_protocol.mkdir(path)
 
     def makedirs(self, path, exist_ok=False):
         """Recursively make directories
@@ -183,11 +134,37 @@ class ShellFileSystem(AbstractFileSystem):
         exist_ok: bool (False)
             If False, will error if the target already exists
         """
-        pass  # not necessary to implement, may not have directories
+        self.fs_protocol.makedirs(path)
 
     def rmdir(self, path):
         """Remove a directory, if empty"""
-        pass  # not necessary to implement, may not have directories
+        # -- NOTE: Not 100% correct -- Removes even non-emptry directories.
+        self.fs_protocol.rmtree(path)
 
+    # TODO: Check if needed.
     def exists(self, path, **kwargs):
         return self.fs_protocol.exists(path)
+
+    def touch(self, path, truncate=True, **kwargs):
+        """Create empty file, or update timestamp
+
+        Parameters
+        ----------
+        path: str
+            file location
+        truncate: bool
+            If True, always set file size to 0; if False, update timestamp and
+            leave file unchanged, if backend allows this
+        """
+        if truncate and self.isfile(path):
+            self.rm_file(path)
+
+        # -- NORMAL-CASE:
+        self.fs_protocol.touch(path)
+
+    def cp_file(self, path1, path2, **kwargs):
+        self.fs_protocol.copy_file(path1, path2, **kwargs)
+
+    def rm_file(self, path):
+        """Delete a file (overridden from base-class)."""
+        self.fs_protocol.remove(path)
