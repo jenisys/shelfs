@@ -37,17 +37,17 @@ class TestFSOpsCommand4Unix:
     EXAMPLES::
 
         $ ls -ladFL -D "%Y-%m-%dT%H:%M:%S" this_repo_directory
-        drwxr-xr-x  10 jens  staff  320 2024-10-27T12:19:03 this_repo_directory/
+        drwxr-xr-x  10 alice  users  320 2024-10-27T12:19:03 this_repo_directory/
         # file_mask ?  user  group  size date               name (with type-suffix)
 
         $ ls -ladL -D "%Y-%m-%dT%H:%M:%S" this_repo_directory
-        drwxr-xr-x  10 jens  staff  320 2024-10-27T12:19:03 this_repo_directory
+        drwxr-xr-x  10 alice  users   320 2024-10-27T12:19:03 this_repo_directory
 
         $ ls -ladL -D "%s" this_path
-        drwxr-xr-x  10 jens  staff  320 1730027943 this_repo_directory
-        -rw-r--r--  1 jens  staff  2879 1730025034 this_file.py
-        -rw-r--r--  1 jens  staff  0 1730063602 __EMPTY_FILE.tag
-        # file_mask ?  user  group  size utc-time-seconds  name (with type-suffix)
+        drwxr-xr-x  10 alice  users   320 1730027943 this_repo_directory
+        -rw-r--r--  1  alice  users  2879 1730025034 this_file.py
+        -rw-r--r--  1  alice  users     0 1730063602 __EMPTY_FILE.tag
+        # file_mask ?  user   group  size utc-time-seconds  name (with type-suffix)
 
         $ ls -ladL -D "%s" this_path
         -rw-r--r--  1 alice  users  2879 Oct 27 11:30 this_file.txt

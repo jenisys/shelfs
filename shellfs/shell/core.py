@@ -6,11 +6,14 @@ from logging import getLogger
 from subprocess import CalledProcessError, CompletedProcess
 from typing import (
     Any, Callable, List,
-    Optional, ParamSpec, Protocol,
-    Tuple, TypedDict
+    Optional, ParamSpec,
+    Tuple, TypedDict, Union
 )
 
-from typing_extensions import Self
+from typing_extensions import Protocol, Self
+# -- NOTE ON: Protocol super().__init__() call problem
+#   * FIXED FOR: Python >= 3.11
+#   * FIXED FOR: typing_extensions >= 4.6.0
 
 
 # -----------------------------------------------------------------------------
@@ -23,13 +26,34 @@ log4fsop = getLogger("shellfs.fsop")
 # TYPE SUPPORT
 # -----------------------------------------------------------------------------
 P = ParamSpec("P")
+DEFAULT_ENCODING = "UTF-8"
+
+# -----------------------------------------------------------------------------
+# UTILITY FUNCTIONS
+# -----------------------------------------------------------------------------
+def as_string(text: Union[str, bytes], encoding: Optional[str] = None) -> str:
+    if isinstance(text, str):
+        return text
+    if not text:
+        return ""
+
+    assert isinstance(text, bytes), "type=%r" % text
+    encoding = encoding or DEFAULT_ENCODING
+    return text.decode(encoding)
 
 
 # -----------------------------------------------------------------------------
 # SHELL PROTOCOL / INTERFACE
 # -----------------------------------------------------------------------------
 class CommandResult(CompletedProcess):
-    pass
+    @staticmethod
+    def make_output(this: Self, stderr_prefix: str = "") -> str:
+        """Combines stdout and stderr and converts them to a string."""
+        output = as_string(this.stdout or "")
+        if this.stderr:
+            output += "\n{prefix}{}".format(as_string(this.stderr),
+                                            prefix=stderr_prefix)
+        return output.strip()
 
 
 class ErrorDialect:
@@ -206,82 +230,87 @@ class FSOpsCommand:
         return NotImplemented
 
     @classmethod
-    def make_result4any(cls, operation: FSOperation, result: CommandResult, **kwargs) -> bool:
+    def make_result4any(cls, operation: FSOperation, result: CommandResult, **kwargs) -> CommandResult:
         # -- NOTE: Indicate if FS operation was successful (or not).
         succeeded = result.returncode == 0
         if succeeded:
-            return True
+            return result
 
         # -- FILESYSTEM-OPERATION FAILED:
         return_code = result.returncode
-        output = result.stdout
+        output = CommandResult.make_output(result)
         log4fsop.warning(f"""{operation.name} FAILED: kwargs: {kwargs}
   return_code: {return_code}
   output: {output}
 """)
-        return False
+        return result
 
     @classmethod
-    def make_result4mkdir(cls, result: CommandResult, directory: str) -> bool:
+    def make_result4mkdir(cls, result: CommandResult, directory: str) -> CommandResult:
         return cls.make_result4any(FSOperation.MKDIR, result,
                                    directory=directory)
 
     @classmethod
-    def make_result4makedirs(cls, result: CommandResult, directory: str) -> bool:
+    def make_result4makedirs(cls, result: CommandResult, directory: str) -> CommandResult:
         return cls.make_result4any(FSOperation.MAKEDIRS, result, directory=directory)
 
     @classmethod
-    def make_result4touch(cls, result: CommandResult, path: str) -> bool:
+    def make_result4touch(cls, result: CommandResult, path: str) -> CommandResult:
         return cls.make_result4any(FSOperation.TOUCH, result, path=path)
 
     @classmethod
-    def make_result4copy_file(cls, result: CommandResult, from_path: str, to_path: str) -> bool:
+    def make_result4copy_file(cls, result: CommandResult,
+                              from_path: str, to_path: str) -> CommandResult:
         return cls.make_result4any(FSOperation.COPY_FILE, result,
                                    from_path=from_path,
                                    to_path=to_path)
 
     @classmethod
-    def make_result4rmtree(cls, result: CommandResult, directory: str) -> bool:
+    def make_result4rmtree(cls, result: CommandResult, directory: str) -> CommandResult:
         return cls.make_result4any(FSOperation.RMTREE, result, directory=directory)
 
     @classmethod
-    def make_result4rmdir(cls, result: CommandResult, directory: str) -> bool:
+    def make_result4rmdir(cls, result: CommandResult, directory: str) -> CommandResult:
         return cls.make_result4any(FSOperation.RMDIR, result, directory=directory)
 
     @classmethod
-    def make_result4remove_file(cls, result: CommandResult, directory: str) -> bool:
-        return cls.make_result4any(FSOperation.REMOVE_FILE, result, directory=directory)
+    def make_result4remove_file(cls, result: CommandResult, path: str) -> CommandResult:
+        return cls.make_result4any(FSOperation.REMOVE_FILE, result, path=path)
 
 
 class ShellProtocol(Protocol):
-    """Protocol for shell(s) that run command(s)."""
+    """Protocol for shell(s) that run command(s) as filesystem operations."""
     FSOPS_COMMAND_CLASS = None
     ERROR_DIALECT_CLASS = ErrorDialect
 
-    def _setup_error_dialect(self, error_dialect: Optional[ErrorDialect] = None):
+    def __init__(self,
+                 fsops_command: Optional[FSOpsCommand] = None,
+                 error_dialect: Optional[ErrorDialect] = None) -> None:
+        # -- NOTE: Works since Python >= 3.11 ot typing_extensions >= 4.6.0
+        # BEFORE: Method not called in DerivedClass with: super().__init__()
+        if fsops_command is None:
+            fsops_command = self.FSOPS_COMMAND_CLASS()
         if error_dialect is None:
             error_dialect = self.ERROR_DIALECT_CLASS
 
+        super().__init__()
+        self.fsops_command = fsops_command
         self.error_dialect = error_dialect
 
-    def _setup_fsops(self, fsops_command: Optional[FSOpsCommand] = None):
-        if fsops_command is None:
-            fsops_command = self.FSOPS_COMMAND_CLASS()
-        self.fsops_command = fsops_command
-
-    def _ensure_setup(self):
-        self._setup_fsops()
-        self._setup_error_dialect()
-
-    # def __init__(self, fsops_command: Optional[FSOpsCommand] = None,
-    #              error_dialect: Optional[ErrorDialect] = None):
-    #     if fsops_command is None:
-    #         fsops_command = self.FSOPS_COMMAND_CLASS()
+    # def _init(self):
+    #     self._setup_fsops()
+    #     self._setup_error_dialect()
+    #
+    # def _setup_error_dialect(self, error_dialect: Optional[ErrorDialect] = None):
     #     if error_dialect is None:
     #         error_dialect = self.ERROR_DIALECT_CLASS
     #
-    #     self.fsops_command = fsops_command
     #     self.error_dialect = error_dialect
+    #
+    # def _setup_fsops(self, fsops_command: Optional[FSOpsCommand] = None):
+    #     if fsops_command is None:
+    #         fsops_command = self.FSOPS_COMMAND_CLASS()
+    #     self.fsops_command = fsops_command
 
     @abstractmethod
     def run(self, command: str, timeout: Optional[float] = None) -> CommandResult:
@@ -325,8 +354,8 @@ class FileSystemProtocol:
         make_command_func, make_result_func = self._fsop_functions_map[operation]
         command = make_command_func(**kwargs)
         result = self.shell.run(command)
-        output = result.stdout.decode()
-        result.stdout = output
+        result.stdout = as_string(result.stdout)
+        result.stderr = as_string(result.stderr)
         return make_result_func(result, **kwargs)
 
     def info(self, path: str) -> PathEntry:
@@ -361,13 +390,13 @@ class FileSystemProtocol:
                              from_path=from_path,
                              to_path=to_path)
 
-    def rmtree(self, directory: str) -> bool:
+    def rmtree(self, directory: str) -> CommandResult:
         return self.run_fsop(FSOperation.RMTREE, directory=directory)
 
-    def rmdir(self, directory: str) -> bool:
+    def rmdir(self, directory: str) -> CommandResult:
         return self.run_fsop(FSOperation.RMDIR, directory=directory)
 
-    def remove_file(self, path: str) -> bool:
+    def remove_file(self, path: str) -> CommandResult:
         return self.run_fsop(FSOperation.REMOVE_FILE, path=path)
 
 

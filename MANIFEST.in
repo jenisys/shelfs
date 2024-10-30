@@ -1,0 +1,21 @@
+include README.md
+include LICENSE
+include .coveragerc
+include .editorconfig
+include .envrc*
+include *.py
+include *.md
+include *.txt
+include *.ini
+include *.toml
+include *.yaml
+exclude __*.txt
+
+recursive-include py.requirements  *.txt
+recursive-include tests  *.py
+# DISABLED: recursive-include tasks  *.py *.txt
+# DISABLED: recursive-include docs   *.rst *.txt *.py
+
+prune .direnv
+prune .tox
+prune .venv*

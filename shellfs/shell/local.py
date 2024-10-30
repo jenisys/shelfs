@@ -17,12 +17,11 @@ class LocalShell(ShellProtocol):
     """
     Runs command(s) in the local shell.
     """
-    STRICT_DEFAULT = None
+    CHECK_DEFAULT = None
 
     def __init__(self, check: Optional[bool] = None) -> None:
         super().__init__()
-        self._ensure_setup()
-        self.check = check or self.STRICT_DEFAULT
+        self.check = check or self.CHECK_DEFAULT
 
     def run(self, command: str,
             timeout: Optional[float] = None,

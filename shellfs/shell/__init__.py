@@ -8,18 +8,13 @@ from .core import ShellFactory
 from .unix import UnixShell as _UnixShell
 from .windows import WindowsShell as _WindowsShell
 
-# -----------------------------------------------------------------------------
-# CONSTANTS
-# -----------------------------------------------------------------------------
-UNIX_PLATFORM_NAMES = ["darwin", "linux", "aix", "cygwin", "freebsd"]
-
 
 # -----------------------------------------------------------------------------
 # MODULE SETUP
 # -----------------------------------------------------------------------------
 def _register_local_shells_by_platform():
     ShellFactory.register_shell("win32", _WindowsShell)
-    for platform_name in UNIX_PLATFORM_NAMES:
+    for platform_name in _UnixShell.SUPPORTED_PLATFORMS:
         ShellFactory.register_shell(platform_name, _UnixShell)
 
 

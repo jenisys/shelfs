@@ -48,17 +48,17 @@ class FSOpsCommand4Unix(FSOpsCommand):
     .. code-block:: bash
 
         $ ls -ladFL -D "%Y-%m-%dT%H:%M:%S" this_repo_directory
-        drwxr-xr-x  10 jens  staff  320 2024-10-27T12:19:03 this_repo_directory/
+        drwxr-xr-x  10 alice users  320 2024-10-27T12:19:03 this_repo_directory/
         # file_mask ?  user  group  size date               name (with type-suffix)
 
         $ ls -ladL -D "%Y-%m-%dT%H:%M:%S" this_repo_directory
-        drwxr-xr-x  10 jens  staff  320 2024-10-27T12:19:03 this_repo_directory
+        drwxr-xr-x  10 alice  users   320 2024-10-27T12:19:03 this_repo_directory
 
         $ ls -ladL -D "%s" this_path
-        drwxr-xr-x  10 jens  staff  320 1730027943 this_repo_directory
-        -rw-r--r--  1 jens  staff  2879 1730025034 this_file.py
-        -rw-r--r--  1 jens  staff  0 1730063602 __EMPTY_FILE.tag
-        # file_mask ?  user  group  size utc-time-seconds  name (with type-suffix)
+        drwxr-xr-x  10 alice  users   320 1730027943 this_repo_directory
+        -rw-r--r--  1  alice  users  2879 1730025034 this_file.py
+        -rw-r--r--  1  alice  users     0 1730063602 __EMPTY_FILE.tag
+        # file_mask ?  user   group  size utc-time-seconds  name (with type-suffix)
 
         $ ls -ladL -D "%s" this_path
         -rw-r--r--  1 alice  users  2879 Oct 27 11:30 this_file.txt
@@ -86,10 +86,9 @@ class FSOpsCommand4Unix(FSOpsCommand):
     COMMAND_SCHEMA4COPY_FILE = "cp {from_path} {to_path}"
     COMMAND_SCHEMA4RMTREE = "rm -rf {directory}"    # -- NOTE: Remove directory-tree recursively.
     COMMAND_SCHEMA4RMDIR = "rmdir {directory}"      # -- NOTE: May fail if non-empty.
-    COMMAND_SCHEMA4REMOVE = "rm -f {path}"          # -- NOTE: Remove file.
+    COMMAND_SCHEMA4REMOVE_FILE = "rm -f {path}"     # -- NOTE: Remove file.
     RESULT_SCHEMA4INFO = "{file_type:Word}{_s0:Spacer}{link_number:d}{_s1:Spacer}{user:w}{_s2:Spacer}{group:w}{_s3:Spacer}{size:d}{_s4:Spacer}{timestamp}{_s5:Spacer}{name:Word}"
     PATH_NOT_FOUND_MARKER = "No such file or directory"
-    # NOT_NEEDED: FILE_TYPE_CHARS = "-bcdlpswD"
     # NOT_NEEDED: FILE_TYPE_NORMAL_CHARS = "-dl"  # Regular-file, directory, symlink
     # COMMAND_SCHEMA4STAT1A = "ls -ladL -D '%s' {path}"  -- macOS
     # COMMAND_SCHEMA4STAT2A = "ls -ladL --time-style='+%s' {path}"  -- Linux
@@ -162,6 +161,18 @@ class FSOpsCommand4Unix(FSOpsCommand):
         return selected
 
 
-
 class UnixShell(LocalShell):
+    """
+    Filesystem shell for UNIX-like shells (Bourne shell, bash, ...).
+
+    SUPPORTED PLATFORMS:
+
+    * "darwin"
+    * "linux"
+    * "aix"
+    * "cygwin"
+    * "freebsd"
+    """
+    # -- BASED-ON: sys.platform names
+    SUPPORTED_PLATFORMS = ["darwin", "linux", "aix", "cygwin", "freebsd"]
     FSOPS_COMMAND_CLASS = FSOpsCommand4Unix
