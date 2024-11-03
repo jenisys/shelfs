@@ -1,19 +1,19 @@
-import sys
 from abc import abstractmethod
 from enum import Enum
 from functools import partial
 from logging import getLogger
 from subprocess import CalledProcessError, CompletedProcess
 from typing import (
-    Any, Callable, List,
-    Optional, ParamSpec,
+    Any, Callable, List, Optional,
     Tuple, TypedDict, Union
 )
 
-from typing_extensions import Protocol, Self
-# -- NOTE ON: Protocol super().__init__() call problem
+from typing_extensions import ParamSpec, Protocol, Self, runtime_checkable
+# -- NOTE ON:
+# - Protocol super().__init__() call problem
 #   * FIXED FOR: Python >= 3.11
 #   * FIXED FOR: typing_extensions >= 4.6.0
+# - ParamSpec: Since Python 3.10 in "typing".
 
 
 # -----------------------------------------------------------------------------
@@ -25,8 +25,9 @@ log4fsop = getLogger("shellfs.fsop")
 # -----------------------------------------------------------------------------
 # TYPE SUPPORT
 # -----------------------------------------------------------------------------
-P = ParamSpec("P")
 DEFAULT_ENCODING = "UTF-8"
+P = ParamSpec("P")
+
 
 # -----------------------------------------------------------------------------
 # UTILITY FUNCTIONS
@@ -98,14 +99,18 @@ class PathType(Enum):
 
 
 class PathEntry(TypedDict):
-    """
-            result = {
-                "name": path,
-                "size": size,
-                "type": t,
-                "created": out.st_ctime,
-                "islink": link,
-            }
+    """Provide a dictionary as ValueObject/Record.
+
+    .. code-block:: python
+
+        # -- EXAMPLE:
+        result = {
+            "name": path,
+            "size": size,
+            "type": t,
+            "created": out.st_ctime,
+            "islink": link,
+        }
     """
     name: str
     type: PathType
@@ -147,6 +152,7 @@ class PathEntry(TypedDict):
 
 
 class FSOperation(Enum):
+    """Enumeration of filesystem operations."""
     UNKNOWN = 0
     INFO = 1
     LISTDIR = 2
@@ -165,9 +171,7 @@ class FSOperation(Enum):
 
 
 class FSOpsCommand:
-    """
-    Provides a mapping for filesystem operations to shell commands.
-    """
+    """Provides a mapping for filesystem operations to shell commands."""
     COMMAND_SCHEMA4INFO = None
     COMMAND_SCHEMA4LISTDIR = None
     COMMAND_SCHEMA4MKDIR = None
@@ -278,6 +282,7 @@ class FSOpsCommand:
         return cls.make_result4any(FSOperation.REMOVE_FILE, result, path=path)
 
 
+@runtime_checkable
 class ShellProtocol(Protocol):
     """Protocol for shell(s) that run command(s) as filesystem operations."""
     FSOPS_COMMAND_CLASS = None
@@ -398,21 +403,3 @@ class FileSystemProtocol:
 
     def remove_file(self, path: str) -> CommandResult:
         return self.run_fsop(FSOperation.REMOVE_FILE, path=path)
-
-
-class ShellFactory:
-    CLASS_REGISTRY = {}
-
-    @classmethod
-    def register_shell(cls, name: str, shell_class) -> Self:
-        cls.CLASS_REGISTRY[name] = shell_class
-
-    @classmethod
-    def make_shell_by_name(cls, name: str) -> ShellProtocol:
-        # -- MAY RAISE: KeyError if name is UNKNOWN.
-        shell_class = cls.CLASS_REGISTRY[name]
-        return shell_class()
-
-    @classmethod
-    def make_local_shell(cls):
-        return cls.make_shell_by_name(sys.platform)

@@ -1,2 +1,2 @@
-from .spec import ShellFileSystem       # noqa: F401
-from .shell.core import CommandResult, PathType, ShellProtocol   # noqa: F401
+from .core import ShellProtocol     # noqa: F401
+from .spec import ShellFileSystem   # noqa: F401

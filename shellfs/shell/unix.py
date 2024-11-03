@@ -1,9 +1,10 @@
-from typing import List, Optional, ParamSpec
+from typing import List, Optional
+from typing_extensions import ParamSpec
 
 import parse
 from parse_type.cfparse import Parser as CFParser
 
-from .core import PathEntry, FSOpsCommand, PathType, CommandResult
+from shellfs.core import CommandResult, FSOpsCommand, PathEntry, PathType
 from .local import LocalShell
 
 # -----------------------------------------------------------------------------

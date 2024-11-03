@@ -1,7 +1,8 @@
 import subprocess
-from typing import Optional, ParamSpec
+from typing import Optional
+from typing_extensions import ParamSpec
 
-from .core import CommandResult, ShellProtocol
+from shellfs.core import CommandResult, ShellProtocol
 
 
 # -----------------------------------------------------------------------------
@@ -14,9 +15,7 @@ P = ParamSpec("P")
 # SHELL IMPLEMENTATION:
 # -----------------------------------------------------------------------------
 class LocalShell(ShellProtocol):
-    """
-    Runs command(s) in the local shell.
-    """
+    """Runs command(s) in the local shell."""
     CHECK_DEFAULT = None
 
     def __init__(self, check: Optional[bool] = None) -> None:

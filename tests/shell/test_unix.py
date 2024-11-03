@@ -2,8 +2,7 @@ from typing import Optional
 
 import pytest
 
-from shellfs.shell import PathEntry
-from shellfs.shell.core import CommandResult, PathType
+from shellfs.core import CommandResult, PathEntry, PathType
 from shellfs.shell.unix import FSOpsCommand4Unix
 # PREPARED: from shellfs.shell.unix import UnixShell
 

@@ -7,7 +7,7 @@ from typing import Optional
 
 import pytest
 
-from shellfs.shell import PathEntry, PathType
+from shellfs.core import PathEntry, PathType
 from shellfs.spec import ShellFileSystem
 
 

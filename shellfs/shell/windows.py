@@ -1,8 +1,7 @@
-from typing import ParamSpec
-from .core import (
+from typing_extensions import ParamSpec
+from shellfs.core import (
     FSOpsCommand,
-    CommandResult,  # noqa: F401
-    ShellProtocol   # noqa: F401
+    # PREPARED: CommandResult,  # noqa: F401
 )
 from .local import LocalShell
 

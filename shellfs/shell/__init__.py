@@ -1,10 +1,4 @@
-from .core import (
-    FileSystemProtocol,  # noqa: F401
-    PathEntry,      # noqa: F401
-    PathType,       # noqa: F401
-    ShellProtocol,  # noqa: F401
-)
-from .core import ShellFactory
+from .factory import ShellFactory
 from .unix import UnixShell as _UnixShell
 from .windows import WindowsShell as _WindowsShell
 

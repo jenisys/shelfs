@@ -11,19 +11,19 @@ MISSING SUPPORT FOR FILESYSTEM:
 * ... (like: cat(), ...)
 """
 
-from typing import Optional, ParamSpec
+from typing import Optional
+from typing_extensions import ParamSpec
 
 from fsspec.spec import AbstractFileSystem
 
-from .shell.core import (
+from shellfs.core import (
     CommandResult,
     FileSystemProtocol,
     PathType,
     ShellProtocol,
-    ShellFactory,
     # PREPARED: as_string,
 )
-
+from shellfs.shell import ShellFactory
 
 # -----------------------------------------------------------------------------
 # TYPE SUPPORT

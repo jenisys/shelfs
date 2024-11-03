@@ -2,7 +2,7 @@ from typing import Any
 
 import pytest
 
-from shellfs.shell.core import PathType
+from shellfs.core import PathType
 
 
 class TestPathType:
@@ -14,7 +14,7 @@ class TestPathType:
         (PathType.DIRECTORY, "directory"),
         (PathType.DIRECTORY, "DIRECTORY"),
     ])
-    def test_equal_returns_true_for_matching_other(self, path_type: PathType, other: Any):
+    def test_equal_returns_true_for_matching_other(self, path_type: PathType, other: Any) -> None:
         assert path_type == other
 
     @pytest.mark.parametrize("path_type, other", [
@@ -25,7 +25,7 @@ class TestPathType:
         (PathType.DIRECTORY, "other"),
         (PathType.DIRECTORY, "file"),
     ])
-    def test_equal_returns_false_for_mismatched_other(self, path_type: PathType, other: Any):
+    def test_equal_returns_false_for_mismatched_other(self, path_type: PathType, other: Any) -> None:
         assert (path_type == other) is False
 
 
